@@ -32,6 +32,9 @@ my $scrolled = $main->Scrolled('Pane',
                                -height => $main->height,
     )->pack(-expand => 1, -fill => 'both');
 my $imagit = $scrolled->Label->pack(-expand => 1, -fill => 'both');
+my $old_width;
+my $old_height;
+my $redraw_after;
 
 
 ## Functions
@@ -61,17 +64,20 @@ sub show_list {
 }
 
 sub show_image {
-    &show_list;
+    my (%opts) = @_;
+
+    &show_list unless $opts{quiet};
 
     unless (@files) {
         $ii = -1;
         $imagit->configure(-image => undef);
-        warn "no images\n";
+        warn "no images\n" unless $opts{quiet};
         return;
     }
     $ii %= @files;
 
-    warn "show image $ii: $files[$ii]\n";
+    warn "show image $ii: $files[$ii]\n"
+        unless $opts{quiet};
 
     my $img1 = $main->Photo(
         'fullscale',
@@ -107,7 +113,17 @@ sub show_image {
         -height => $img2->height,
         );
 
+    # save the width and height of the main window so
+    # we can re-display the image when it's resized
+    $old_width = $main->width;
+    $old_height = $main->height;
+
     &set_title;
+}
+
+sub redraw_image {
+    &show_image(quiet => 1);
+    $redraw_after = undef;
 }
 
 sub prev_image {
@@ -164,6 +180,14 @@ $main->bind('<Left>'  => \&prev_image);
 $main->bind('<Next>'  => \&next_image);
 $main->bind('<Down>'  => \&next_image);
 $main->bind('<Right>' => \&next_image);
+
+$main->bind('<Configure>', => sub {
+    my $w = shift;
+    if (ref $w eq 'MainWindow' && $ii >= 0 &&
+        defined $old_width && defined $old_height) {
+        $main->afterCancel($redraw_after) if $redraw_after;
+        $redraw_after = $main->after(10, \&redraw_image);
+    }});
 
 # letter keys sort images into directories
 for my $key ('a'..'z') {
