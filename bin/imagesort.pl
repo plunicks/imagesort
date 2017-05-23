@@ -7,6 +7,16 @@ use Tk::Pane;
 use Tk::JPEG;
 use Tk::PNG;
 use File::Copy qw(move);
+use Getopt::Long qw(:config gnu_getopt);
+
+
+## Configuration
+my %options;
+
+GetOptions(\%options,
+           'dry-run|n!',
+    );
+
 
 ## State
 my @files = grep {
@@ -125,13 +135,16 @@ sub sort_image {
     return unless @files;
 
     my $file = $files[$ii];
+
     warn "sort $file to $key\n";
+    if (!$options{'dry-run'}) {
+        my $dir = get_dir($key);
 
-    my $dir = get_dir($key);
+        -d $dir || mkdir $dir || exit 1;
 
-    -d $dir || mkdir $dir || exit 1;
+        move($file, $dir) || return;
+    }
 
-    move($file, $dir) || return;
     splice @files, $ii, 1;
 
     $ii = -1 if !@files;
