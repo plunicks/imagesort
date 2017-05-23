@@ -33,7 +33,26 @@ sub max {
     $_[0] >= $_[1] ? $_[0] : $_[1]
 }
 
+# Display the list of files, indicating the current file.
+# This format is based on that of Data::Printer.
+sub show_list {
+    print STDERR "[\n";
+    for my $i (0..$#files) {
+        # width of index part depends on number of files:
+        my $width = (length scalar @files) + 2;
+        printf STDERR (
+            qq{%3s %-${width}s %s\n},
+            $i == $ii ? '->' : '',
+            "[$i]",
+            $files[$i],
+            );
+    }
+    print STDERR "]\n";
+}
+
 sub show_image {
+    &show_list;
+
     unless (@files) {
         $ii = -1;
         $imagit->configure(-image => undef);
