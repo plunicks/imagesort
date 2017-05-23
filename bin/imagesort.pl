@@ -8,14 +8,24 @@ use Tk::JPEG;
 use Tk::PNG;
 use File::Copy qw(move);
 use Getopt::Long qw(:config gnu_getopt);
+use String::ShellQuote;
+use List::MoreUtils qw(any);
 
 
 ## Configuration
-my %options;
+my %options = (
+    format => 'tab',
+    );
 
 GetOptions(\%options,
            'dry-run|n!',
+           'format|f=s',
     );
+
+my @formats = qw(tab sh csv none);
+unless (any { $_ eq $options{format} } @formats) {
+    die "Valid formats are: @formats\n";
+}
 
 
 ## State
@@ -35,6 +45,7 @@ my $imagit = $scrolled->Label->pack(-expand => 1, -fill => 'both');
 my $old_width;
 my $old_height;
 my $redraw_after;
+my %groups;
 
 
 ## Functions
@@ -161,6 +172,7 @@ sub sort_image {
         move($file, $dir) || return;
     }
 
+    push @{$groups{$key}}, $file;
     splice @files, $ii, 1;
 
     $ii = -1 if !@files;
@@ -168,6 +180,19 @@ sub sort_image {
 }
 
 sub quit {
+    for my $key (sort keys %groups) {
+        for my $file (@{$groups{$key} || []}) {
+            if ($options{format} eq 'tab') {
+                print "$file\t$key\n";
+            } elsif ($options{format} eq 'sh') {
+                printf "mv %s %s\n",
+                shell_quote($file), shell_quote(get_dir($key));
+            } elsif ($options{format} eq 'csv') {
+                printf "%s,%s\n",
+                shell_quote(get_dir($key)), shell_quote($file);
+            }
+        }
+    }
     exit 0;
 }
 
